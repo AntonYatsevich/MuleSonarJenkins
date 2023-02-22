@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="54d14758-92da-4e15-826d-88440963862e" >
+		<http:listener-connection host="0.0.0.0" port="8088" />
+	</http:listener-config>
+	<flow name="handlingResponse" doc:id="91457ea7-1115-417c-945e-55735deccac6" >
+		<http:listener doc:name="POST 8088 /sfdc" doc:id="59d772d1-0db5-4950-a63f-55d322d43e0e" config-ref="HTTP_Listener_config" path="/sfdc" allowedMethods="POST"/>
+		<ee:transform doc:name="Transform Message" doc:id="8798e1f3-b521-46bc-85cc-77f564a497a9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="isErrorExistsInResponse" doc:id="f234fcde-5d77-44a3-a725-8807459554c8" >
+			<when expression="payload..errors != null">
+				<flow-ref doc:name="handlingResponseWithError" doc:id="4a0340c8-bda7-4e74-8ccf-a9d8ee3e11fa" name="handlingResponseWithError"/>
+			</when>
+			<otherwise>
+				<flow-ref doc:name="handlingResponseWithoutError" doc:id="36d9ebb3-e2e9-4739-af50-43dd6629ed1c" name="handlingResponseWithoutError"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="handlingResponseWithError" doc:id="23c79eb7-b7c8-423d-9ba5-76637f6971ad" >
+		<set-variable value="#[readUrl('classpath://errorTypesForSkipFlowExecution.dwl')]" doc:name="Set Variable" doc:id="aa2f0c3f-f418-4753-978c-f63a0540d570" variableName="errorTypesForSkipFlowExecution"/>
+		<choice doc:name="Choice" doc:id="88977182-dbb1-4436-b14e-ae6961871e5f" >
+			<when expression="#[vars.errorTypesForSkipFlowExecution.errorType contains payload..statusCode[0]]">
+				<logger level="INFO" doc:name="Logger" doc:id="d5260c84-567e-4a49-89a9-5f1aab5798bb" message="#[payload..message[0]]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="2656e797-7a4a-49aa-bb41-fc96f57826dc" message="not nice"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="handlingResponseWithoutError" doc:id="1aaf781b-5568-44ff-a1da-e93cafcfcf26" >
+		<choice doc:name="Choice" doc:id="0355eba2-3278-463b-985a-42f81253eff6" >
+			<when expression="#[payload..id != null]">
+				<logger level="INFO" doc:name="Logger" doc:id="174c4453-9914-4acb-b3a4-fae7ba8c4030" message="#[payload..id[0]]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="0ebce1a0-bdda-4ee7-9aa8-10a8c652da20" message="#[payload..size[0]]"/>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
